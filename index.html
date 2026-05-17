@@ -438,6 +438,10 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   <div class="water-hero">
     <div class="water-hero-row">
       <div class="water-now" id="water-now">0</div>
+      <div style="display:flex; flex-direction:column; align-items:flex-start; margin-left:8px; padding-bottom:12px">
+        <div style="font-family:'Space Mono', monospace; font-size:14px; color:var(--accent2); font-weight:700" id="rt-ratio">1:0.0</div>
+        <div style="font-size:9px; color:var(--muted); letter-spacing:1px">即時比例</div>
+      </div>
       <div class="water-sep">/</div>
       <div class="water-total" id="water-total">300</div>
       <div class="water-unit-big">ml</div>
@@ -760,6 +764,7 @@ function updateDisplay(){
   const tw=totalWater();
   const poured=getWaterAt(elapsedSeconds);
   document.getElementById('water-now').textContent=poured;
+  document.getElementById('rt-ratio').textContent='1:'+(poured/state.beans).toFixed(1);
   const pct=Math.min(Math.round(poured/tw*100),100);
   document.getElementById('wb-fill').style.width=pct+'%';
   document.getElementById('wb-pct').textContent=pct+'%';
