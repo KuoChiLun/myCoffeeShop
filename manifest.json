@@ -1,0 +1,17 @@
+{
+  "name": "Pour Over Coffee Timer",
+  "short_name": "PourOver",
+  "description": "Professional hand-drip coffee brewing timer with curve tracking.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a1208",
+  "theme_color": "#1a1208",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%231a1208'/%3E%3Ctext x='50%25' y='55%25' font-family='serif' font-size='300' fill='%23e8a855' text-anchor='middle' dominant-baseline='middle'%3E☕%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -3,8 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1208">
+<link rel="manifest" href="manifest.json">
 <title>手沖咖啡</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root {
   --bg: #1a1208; --surface: #241a0e; --surface2: #2e2010; --card: #332515;
@@ -49,7 +52,9 @@ body::before {
   display: none; padding: 16px 14px;
   padding-bottom: calc(82px + env(safe-area-inset-bottom));
   position: relative; z-index: 1;
+  animation: pageIn 0.3s ease-out;
 }
+@keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .page.active { display: block; }
 #page-timer { padding-left: 0; padding-right: 0;
   padding-bottom: calc(82px + env(safe-area-inset-bottom)); }
@@ -516,6 +521,10 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
     <div class="cstat"><div class="cstat-val" id="cs-bean">–</div><div class="cstat-lbl">咖啡豆</div></div>
     <div class="cstat"><div class="cstat-val" id="cs-ratio">–</div><div class="cstat-lbl">粉水比</div></div>
   </div>
+  <div class="card" style="width:100%; padding:10px; margin-bottom:20px; background:rgba(0,0,0,0.2)">
+    <div class="card-title" style="margin-bottom:8px">📈 沖煮曲線</div>
+    <canvas id="brewChart" style="width:100%; height:180px"></canvas>
+  </div>
   <div class="complete-btns">
     <button class="btn btn-primary" onclick="goMemo()" style="width:100%">📓 記錄此次沖煮</button>
     <button class="btn btn-secondary" onclick="closeComplete()" style="width:100%">↺ 再沖一杯</button>
@@ -525,6 +534,12 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 <div class="toast" id="toast"></div>
 
 <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW reg fail:', err));
+  });
+}
+
 const state={beans:20,water:300,temp:90,bloom:40,grind:18};
 let brewStages=[
   {type:'pour',name:'倒水',water:40, duration:7, instruction:'由中心向外螺旋注水，豆粉充分濕潤'},
@@ -539,6 +554,8 @@ let brewStages=[
   {type:'wait',name:'等待',water:0,  duration:17,instruction:'滴濾完成，靜待所有咖啡液落下'},
 ];
 let timerInterval=null,timerRunning=false,elapsedSeconds=0,currentStageIdx=0;
+let brewData=[]; // Stores {t: time, w: water}
+let brewChart=null;
 let soundEnabled=true,memoStars=0;
 let memos=JSON.parse(localStorage.getItem('coffee_memos')||'[]');
 let savedRecipes=JSON.parse(localStorage.getItem('coffee_recipes')||'[]');
@@ -787,12 +804,14 @@ function toggleTimer(){
   if(timerRunning){clearInterval(timerInterval);timerRunning=false;document.getElementById('btn-start').textContent='▶ 繼續';}
   else{
     try{getACtx().resume();}catch(e){}
+    if(elapsedSeconds===0) brewData=[{t:0, w:0}];
     timerRunning=true;document.getElementById('btn-start').textContent='⏸ 暫停';
     timerInterval=setInterval(tick,1000);
   }
 }
 function tick(){
   elapsedSeconds++;
+  brewData.push({t:elapsedSeconds, w:getWaterAt(elapsedSeconds)});
   if(elapsedSeconds>=totalTime()){clearInterval(timerInterval);timerRunning=false;document.getElementById('btn-start').textContent='✓ 完成';updateDisplay();finalBeep();return;}
   updateDisplay();
 }
@@ -837,6 +856,55 @@ function showCompleteOverlay(){
   document.getElementById('cs-bean').textContent=state.beans+'g';
   document.getElementById('cs-ratio').textContent='1:'+(tw/state.beans).toFixed(1);
   document.getElementById('complete-overlay').classList.add('show');
+  renderBrewChart();
+}
+function renderBrewChart(){
+  const ctx = document.getElementById('brewChart').getContext('2d');
+  if(brewChart) brewChart.destroy();
+  
+  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent2').trim() || '#e8a855';
+  const pourColor = getComputedStyle(document.documentElement).getPropertyValue('--pour').trim() || '#4ab8e8';
+
+  brewChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: brewData.map(d => ft(d.t)),
+      datasets: [{
+        label: '注水量 (ml)',
+        data: brewData.map(d => d.w),
+        borderColor: pourColor,
+        backgroundColor: 'rgba(74, 184, 232, 0.1)',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(90, 62, 34, 0.2)' },
+          ticks: { color: '#8a6a42', font: { size: 10, family: 'Space Mono' } }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { 
+            color: '#8a6a42', 
+            font: { size: 10, family: 'Space Mono' },
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 6
+          }
+        }
+      }
+    }
+  });
 }
 function closeComplete(){document.getElementById('complete-overlay').classList.remove('show');resetTimer();}
 function goMemo(){document.getElementById('complete-overlay').classList.remove('show');saveMemoAfterBrew();}
