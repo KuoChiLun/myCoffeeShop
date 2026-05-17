@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>手沖咖啡</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #1a1208; --surface: #241a0e; --surface2: #2e2010; --card: #332515;
+  --border: #5a3e22; --accent: #c8833a; --accent2: #e8a855; --cream: #f5e6c8;
+  --cream2: #e8d4a8; --muted: #8a6a42; --danger: #c44b2b; --success: #4a8a5a;
+  --text: #f0ddb8; --text2: #c8a87a; --pour: #4ab8e8; --wait: #c8833a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--bg); color: var(--text); font-family: 'Noto Serif TC', serif;
+  min-height: 100dvh; max-width: 430px; margin: 0 auto; overflow-x: hidden;
+  padding-top: env(safe-area-inset-top);
+}
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+/* ── Bottom Tab Bar ── */
+.nav {
+  display: flex;
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  background: rgba(36,26,14,.96);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 100;
+}
+.nav-btn {
+  flex: 1; padding: 10px 6px 6px; background: none; border: none; color: var(--muted);
+  font-family: 'Noto Serif TC', serif; font-size: 11px; cursor: pointer;
+  transition: color .2s;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.nav-icon { font-size: 22px; transition: transform .15s; display: block; }
+.nav-btn.active { color: var(--accent2); }
+.nav-btn.active .nav-icon { transform: scale(1.1); }
+
+.page {
+  display: none; padding: 16px 14px;
+  padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  position: relative; z-index: 1;
+}
+.page.active { display: block; }
+#page-timer { padding-left: 0; padding-right: 0;
+  padding-bottom: calc(82px + env(safe-area-inset-bottom)); }
+
+.page-header { text-align: center; margin-bottom: 20px; }
+.page-header h1 {
+  font-family: 'Crimson Pro', serif; font-size: 26px; font-weight: 300;
+  font-style: italic; color: var(--accent2); letter-spacing: 2px;
+}
+.page-header p { font-size: 11px; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; margin-top: 3px; }
+.divider { display: flex; align-items: center; gap: 12px; margin: 6px 0 18px; color: var(--border); font-size: 11px; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.card-title {
+  font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.param-item { display: flex; flex-direction: column; gap: 5px; }
+.param-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+.param-value { font-family: 'Space Mono', monospace; font-size: 22px; color: var(--cream); font-weight: 700; line-height: 1; }
+.param-unit { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-left: 3px; }
+.param-controls { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.param-btn {
+  width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--accent2); font-size: 17px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.param-btn:active { background: var(--accent); transform: scale(0.9); }
+input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 2px; outline: none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--accent2); }
+
+.ratio-display { text-align: center; padding: 10px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); margin-top: 10px; }
+.ratio-number { font-family: 'Space Mono', monospace; font-size: 26px; color: var(--accent2); font-weight: 700; }
+.ratio-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+select {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--cream); font-family: 'Noto Serif TC', serif; font-size: 13px;
+  padding: 9px 12px; width: 100%; outline: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a6a42' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.grind-scale { display: flex; gap: 3px; margin-top: 8px; }
+.grind-bar { flex: 1; background: var(--border); border-radius: 2px; cursor: pointer; transition: all .15s; }
+.grind-bar.active { background: var(--accent); }
+.temp-indicator { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+.temp-dot { width: 7px; height: 7px; border-radius: 50%; background: #e05a30; box-shadow: 0 0 5px #e05a30; }
+.quick-presets { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+.preset-chip {
+  padding: 6px 13px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text2); font-size: 12px;
+  cursor: pointer; transition: all .15s; font-family: 'Noto Serif TC', serif;
+}
+.preset-chip:active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.section-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+.coffee-ring { text-align: center; font-size: 44px; margin-bottom: 4px; filter: drop-shadow(0 4px 12px rgba(200,131,58,.3)); }
+input[type="text"], input[type="number"], textarea {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--cream); font-family: 'Noto Serif TC', serif; font-size: 13px;
+  padding: 9px 12px; width: 100%; outline: none;
+}
+input[type="number"] { font-family: 'Space Mono', monospace; }
+textarea { resize: none; min-height: 75px; line-height: 1.6; }
+input::placeholder, textarea::placeholder { color: var(--muted); }
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }
+.btn {
+  flex: 1; padding: 13px; border-radius: 10px; border: none;
+  font-family: 'Noto Serif TC', serif; font-size: 15px; cursor: pointer;
+  transition: all .15s; font-weight: 600;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: var(--bg); }
+.btn-primary:hover { background: var(--accent2); }
+.btn-secondary { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-sm { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); font-family: 'Noto Serif TC', serif; font-size: 12px; cursor: pointer; }
+
+/* ── TIMER ── */
+.timer-hero { text-align: center; padding: 20px 0 8px; position: relative; }
+.sound-btn { position: absolute; top: 12px; right: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; font-size: 15px; cursor: pointer; color: var(--muted); }
+.sound-btn.on { color: var(--accent2); }
+.timer-big { font-family: 'Space Mono', monospace; font-size: 64px; font-weight: 700; color: var(--cream); line-height: 1; letter-spacing: -2px; }
+.timer-big.flash { animation: f .35s ease; }
+@keyframes f { 0%,100%{color:var(--cream)} 50%{color:var(--danger)} }
+.stage-badge {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 10px;
+  padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; letter-spacing: 1px;
+}
+.stage-badge.pour { background: rgba(74,184,232,.15); color: var(--pour); border: 1px solid rgba(74,184,232,.3); }
+.stage-badge.wait { background: rgba(200,131,58,.15); color: var(--accent2); border: 1px solid rgba(200,131,58,.3); }
+.stage-badge.done { background: rgba(74,138,90,.15); color: #6aba82; border: 1px solid rgba(74,138,90,.3); }
+
+/* Water hero */
+.water-hero {
+  text-align: center; padding: 10px 14px 4px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.water-hero-row { display: flex; align-items: flex-end; justify-content: center; gap: 0; }
+.water-now {
+  font-family: 'Space Mono', monospace; font-size: 72px; font-weight: 700; line-height: 1;
+  color: var(--pour); text-shadow: 0 0 30px rgba(74,184,232,.35); transition: color .3s; letter-spacing: -2px;
+}
+.water-now.wait-mode { color: var(--accent2); text-shadow: 0 0 30px rgba(232,168,85,.3); }
+.water-sep { font-family: 'Space Mono', monospace; font-size: 32px; font-weight: 700; color: var(--border); line-height: 1; padding: 0 4px 10px; }
+.water-total { font-family: 'Space Mono', monospace; font-size: 32px; font-weight: 700; color: var(--muted); line-height: 1; padding-bottom: 10px; }
+.water-unit-big { font-family: 'Space Mono', monospace; font-size: 18px; color: var(--muted); padding-bottom: 14px; margin-left: 4px; }
+.water-bar-row { display: flex; align-items: center; gap: 10px; padding: 6px 0 10px; }
+.wb-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.wb-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg,#3a9ed4,var(--pour)); transition: width .8s cubic-bezier(.4,0,.2,1); }
+.wb-pct { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--muted); flex-shrink: 0; width: 36px; text-align: right; }
+
+/* Stage hint */
+.stage-pour-hint { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 14px 10px; background: var(--surface); }
+.hint-chip { display: flex; flex-direction: column; align-items: center; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); }
+.hint-chip.active-pour { border-color: rgba(74,184,232,.5); background: rgba(74,184,232,.08); }
+.hint-chip.active-wait { border-color: rgba(200,131,58,.4); background: rgba(200,131,58,.07); }
+.hint-val { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; color: var(--muted); }
+.hint-val.pour-color { color: var(--pour); }
+.hint-val.wait-color { color: var(--accent2); }
+.hint-lbl { font-size: 9px; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
+.hint-arrow { font-size: 18px; color: var(--border); }
+
+/* Mid section */
+.mid-section { display: flex; align-items: center; gap: 12px; padding: 10px 14px 4px; }
+.stage-ring { position: relative; width: 96px; height: 96px; flex-shrink: 0; }
+.stage-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-track { fill: none; stroke: var(--surface2); stroke-width: 7; }
+.ring-fill { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset .9s linear; }
+.ring-fill.pour { stroke: var(--pour); }
+.ring-fill.wait { stroke: var(--accent); }
+.ring-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-sec { font-family: 'Space Mono', monospace; font-size: 24px; font-weight: 700; color: var(--cream); }
+.ring-lbl { font-size: 9px; color: var(--muted); margin-top: 1px; }
+.instr-card { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: 0 10px 10px 0; padding: 10px 13px; font-size: 13px; color: var(--cream2); line-height: 1.6; flex: 1; align-self: stretch; display: flex; align-items: center; }
+.timer-controls { display: flex; gap: 9px; margin: 10px 14px 12px; }
+
+/* Stage cards */
+.stage-cards { display: flex; flex-direction: column; gap: 7px; padding: 0 14px; }
+.sc {
+  display: flex; align-items: center; gap: 11px; padding: 13px 15px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--border); transition: all .2s; position: relative; overflow: hidden;
+}
+.sc::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 10px 0 0 10px; }
+.sc.pour::before { background: var(--pour); }
+.sc.wait::before { background: var(--accent); }
+.sc.active-sc { border-color: var(--accent2); background: rgba(232,168,85,.08); transform: scale(1.01); box-shadow: 0 0 0 1px rgba(232,168,85,.2); }
+.sc.active-sc.pour { border-color: var(--pour); background: rgba(74,184,232,.08); box-shadow: 0 0 0 1px rgba(74,184,232,.2); }
+.sc.active-sc.wait { border-color: var(--accent); }
+.sc.done-sc { opacity: .35; }
+.sc-icon { font-size: 24px; width: 34px; text-align: center; flex-shrink: 0; }
+.sc-body { flex: 1; }
+.sc-name { font-size: 16px; font-weight: 600; color: var(--text); }
+.sc-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.sc-time { font-family: 'Space Mono', monospace; font-size: 19px; font-weight: 700; color: var(--text2); flex-shrink: 0; }
+.sc.active-sc .sc-time { color: var(--accent2); }
+.sc.active-sc.pour .sc-time { color: var(--pour); }
+.stage-divider { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); padding: 8px 4px 2px; }
+
+/* Complete overlay */
+.complete-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200; background: var(--bg);
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px 28px calc(32px + env(safe-area-inset-bottom));
+  animation: fadeIn .5s ease;
+}
+.complete-overlay.show { display: flex; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.complete-icon { font-size: 80px; margin-bottom: 16px; filter: drop-shadow(0 0 24px rgba(200,131,58,.5)); }
+.complete-title { font-family: 'Crimson Pro', serif; font-size: 36px; font-weight: 300; font-style: italic; color: var(--accent2); margin-bottom: 6px; letter-spacing: 2px; }
+.complete-sub { font-size: 13px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 32px; }
+.complete-stats { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }
+.cstat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; }
+.cstat-val { font-family: 'Space Mono', monospace; font-size: 26px; font-weight: 700; color: var(--accent2); }
+.cstat-lbl { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.complete-btns { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+
+/* Recipe */
+.recipe-stage { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; display: flex; gap: 8px; align-items: flex-start; }
+.recipe-stage-body { flex: 1; }
+.rs-row { display: flex; gap: 7px; margin-bottom: 7px; align-items: center; }
+.rs-row label { font-size: 10px; color: var(--muted); width: 44px; flex-shrink: 0; }
+.rs-del { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; flex-shrink: 0; }
+.rs-del:hover { color: var(--danger); }
+
+/* Memo */
+.memo-list { display: flex; flex-direction: column; gap: 9px; }
+.memo-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 13px; position: relative; }
+.memo-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); border-radius: 10px 0 0 10px; }
+.memo-date { font-size: 10px; color: var(--muted); margin-bottom: 4px; font-family: 'Space Mono', monospace; }
+.memo-params { font-size: 11px; color: var(--accent2); margin-bottom: 4px; font-family: 'Space Mono', monospace; }
+.memo-text { font-size: 13px; color: var(--cream2); line-height: 1.6; }
+.memo-del { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; }
+.stars { display: flex; gap: 4px; margin: 6px 0; }
+.star { font-size: 20px; cursor: pointer; color: var(--border); transition: color .15s; }
+.star.filled { color: var(--accent2); }
+.saved-ri { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 7px; position: relative; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: calc(72px + env(safe-area-inset-bottom));
+  left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--accent); color: var(--bg); padding: 8px 18px; border-radius: 20px;
+  font-size: 13px; font-weight: 600; opacity: 0; transition: all .3s; z-index: 999; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('params')" id="nav-params">
+    <span class="nav-icon">⚙️</span><span>參數</span>
+  </button>
+  <button class="nav-btn" onclick="showPage('recipe')" id="nav-recipe">
+    <span class="nav-icon">📋</span><span>食譜</span>
+  </button>
+  <button class="nav-btn" onclick="showPage('timer')" id="nav-timer">
+    <span class="nav-icon">⏱</span><span>計時</span>
+  </button>
+  <button class="nav-btn" onclick="showPage('memo')" id="nav-memo">
+    <span class="nav-icon">📓</span><span>筆記</span>
+  </button>
+</nav>
+
+<!-- PARAMS -->
+<div class="page active" id="page-params">
+  <div class="page-header">
+    <div class="coffee-ring">☕</div>
+    <h1>Pour Over</h1>
+    <p>手沖咖啡參數設定</p>
+  </div>
+  <div class="divider">✦</div>
+  <div class="section-label">快速預設</div>
+  <div class="quick-presets">
+    <button class="preset-chip" onclick="applyPreset('v60')">V60 初學者</button>
+    <button class="preset-chip" onclick="applyPreset('v60adv')">V60 進階</button>
+    <button class="preset-chip" onclick="applyPreset('kalita')">Kalita 波浪</button>
+    <button class="preset-chip" onclick="applyPreset('cold')">冷萃輕口</button>
+  </div>
+  <div class="card">
+    <div class="card-title">☕ 基礎比例</div>
+    <div class="params-grid">
+      <div class="param-item">
+        <div class="param-label">咖啡豆</div>
+        <div><span class="param-value" id="val-beans">20</span><span class="param-unit">g</span></div>
+        <div class="param-controls">
+          <button class="param-btn" onclick="adjust('beans',-0.5)">−</button>
+          <input type="range" min="5" max="40" step="0.5" value="20" oninput="setVal('beans',this.value)" style="flex:1">
+          <button class="param-btn" onclick="adjust('beans',0.5)">+</button>
+        </div>
+      </div>
+      <div class="param-item">
+        <div class="param-label">注水量</div>
+        <div><span class="param-value" id="val-water">300</span><span class="param-unit">ml</span></div>
+        <div class="param-controls">
+          <button class="param-btn" onclick="adjust('water',-5)">−</button>
+          <input type="range" min="50" max="600" step="5" value="300" oninput="setVal('water',this.value)" style="flex:1">
+          <button class="param-btn" onclick="adjust('water',5)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="ratio-display">
+      <div class="ratio-number" id="ratio-display">1 : 15.0</div>
+      <div class="ratio-label">粉水比</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🌡 水溫 &amp; 預浸</div>
+    <div class="params-grid">
+      <div class="param-item">
+        <div class="param-label">目標水溫</div>
+        <div><span class="param-value" id="val-temp">90</span><span class="param-unit">°C</span></div>
+        <div class="param-controls">
+          <button class="param-btn" onclick="adjust('temp',-1)">−</button>
+          <input type="range" min="60" max="100" step="1" value="90" oninput="setVal('temp',this.value)" style="flex:1">
+          <button class="param-btn" onclick="adjust('temp',1)">+</button>
+        </div>
+        <div class="temp-indicator"><div class="temp-dot"></div><span id="temp-desc" style="font-size:10px;color:var(--muted)">中高溫・均衡萃取</span></div>
+      </div>
+      <div class="param-item">
+        <div class="param-label">預浸水量</div>
+        <div><span class="param-value" id="val-bloom">40</span><span class="param-unit">ml</span></div>
+        <div class="param-controls">
+          <button class="param-btn" onclick="adjust('bloom',-5)">−</button>
+          <input type="range" min="10" max="80" step="5" value="40" oninput="setVal('bloom',this.value)" style="flex:1">
+          <button class="param-btn" onclick="adjust('bloom',5)">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">⚙️ 磨豆粗細</div>
+    <div class="params-grid" style="margin-bottom:10px">
+      <div class="param-item">
+        <div class="param-label">研磨刻度</div>
+        <div><span class="param-value" id="val-grind">18</span><span class="param-unit">格</span></div>
+        <div class="param-controls">
+          <button class="param-btn" onclick="adjustGrind(-1)">−</button>
+          <input type="range" min="1" max="40" step="1" value="18" id="grind-range" oninput="setGrind(this.value)" style="flex:1">
+          <button class="param-btn" onclick="adjustGrind(1)">+</button>
+        </div>
+      </div>
+      <div class="param-item">
+        <div class="param-label">磨豆機類型</div>
+        <select id="grind-type"><option>手搖磨豆機</option><option>電動磨豆機</option><option>刀片磨豆機</option></select>
+      </div>
+    </div>
+    <div class="grind-scale" id="grind-scale"></div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:5px">
+      <span>極細</span><span id="grind-label" style="color:var(--accent2);font-weight:600">中細 (手沖)</span><span>極粗</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">☕ 器材與豆子</div>
+    <div class="row" style="margin-bottom:9px">
+      <div><div class="param-label" style="margin-bottom:5px">濾杯</div>
+        <select><option>Hario V60</option><option>Kalita Wave</option><option>Chemex</option><option>Origami</option></select>
+      </div>
+      <div><div class="param-label" style="margin-bottom:5px">烘焙度</div>
+        <select><option>淺焙</option><option selected>中焙</option><option>中深焙</option><option>深焙</option></select>
+      </div>
+    </div>
+    <input type="text" placeholder="豆子名稱，例：耶加雪菲 日曬 G1" id="bean-name">
+  </div>
+  <button class="btn btn-primary" onclick="showPage('timer')" style="width:100%">▶ 開始沖煮</button>
+</div>
+
+<!-- RECIPE -->
+<div class="page" id="page-recipe">
+  <div class="page-header"><h1>沖煮食譜</h1><p>自定義沖煮步驟</p></div>
+  <div class="divider">✦</div>
+  <div class="card">
+    <div class="card-title">📋 食譜設定</div>
+    <input type="text" id="recipe-name" placeholder="食譜名稱" style="margin-bottom:9px">
+    <div class="row">
+      <div><div class="param-label" style="margin-bottom:5px">總時間 (秒)</div><input type="number" id="recipe-total-time" value="110"></div>
+      <div><div class="param-label" style="margin-bottom:5px">目標水量 (ml)</div><input type="number" id="recipe-total-water" value="300"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">💧 沖煮階段</div>
+    <div id="recipe-stages"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-secondary" onclick="addPourStage()" style="flex:1">💧 注水</button>
+      <button class="btn btn-secondary" onclick="addWaitStage()" style="flex:1">⏳ 等待</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📝 備註</div>
+    <textarea id="recipe-instructions" placeholder="沖煮手法、注水方式..."></textarea>
+  </div>
+  <div style="display:flex;gap:9px;margin-top:4px">
+    <button class="btn btn-secondary" onclick="saveRecipe()">💾 儲存</button>
+    <button class="btn btn-primary" onclick="showPage('timer')">▶ 套用並沖煮</button>
+  </div>
+  <div id="saved-recipes-section" style="margin-top:18px;display:none">
+    <div class="card-title" style="margin-bottom:10px">📚 已儲存食譜</div>
+    <div id="saved-recipes-list"></div>
+  </div>
+</div>
+
+<!-- TIMER -->
+<div class="page" id="page-timer">
+  <div class="timer-hero">
+    <button class="sound-btn on" id="sound-btn" onclick="toggleSound()">🔔</button>
+    <div class="timer-big" id="timer-display">00:00</div>
+    <div><span class="stage-badge pour" id="stage-badge">☕ 準備開始</span></div>
+  </div>
+
+  <div class="water-hero">
+    <div class="water-hero-row">
+      <div class="water-now" id="water-now">0</div>
+      <div class="water-sep">/</div>
+      <div class="water-total" id="water-total">300</div>
+      <div class="water-unit-big">ml</div>
+    </div>
+    <div class="water-bar-row">
+      <div class="wb-track"><div class="wb-fill" id="wb-fill" style="width:0%"></div></div>
+      <div class="wb-pct" id="wb-pct">0%</div>
+    </div>
+  </div>
+
+  <div class="stage-pour-hint">
+    <div class="hint-chip" id="hint-stage">
+      <div class="hint-val pour-color" id="chip-stage">–</div>
+      <div class="hint-lbl">本段注水</div>
+    </div>
+    <div class="hint-arrow">→</div>
+    <div class="hint-chip" id="hint-cum">
+      <div class="hint-val pour-color" id="chip-cum">–</div>
+      <div class="hint-lbl">累計目標</div>
+    </div>
+  </div>
+
+  <div class="mid-section">
+    <div class="stage-ring">
+      <svg viewBox="0 0 96 96">
+        <circle class="ring-track" cx="48" cy="48" r="41"/>
+        <circle class="ring-fill pour" id="stage-ring-c" cx="48" cy="48" r="41" stroke-dasharray="258" stroke-dashoffset="0"/>
+      </svg>
+      <div class="ring-inner">
+        <div class="ring-sec" id="stage-sec">–</div>
+        <div class="ring-lbl">本段剩餘</div>
+      </div>
+    </div>
+    <div class="instr-card" id="instr-card">準備開始沖煮</div>
+  </div>
+
+  <div class="timer-controls">
+    <button class="btn btn-secondary" onclick="resetTimer()" style="max-width:88px">↺ 重置</button>
+    <button class="btn btn-primary" onclick="toggleTimer()" id="btn-start">▶ 開始</button>
+  </div>
+
+  <div style="padding:0 14px 8px">
+    <div class="stage-divider">📋 沖煮步驟</div>
+  </div>
+  <div class="stage-cards" id="stage-cards"></div>
+  <div style="padding:12px 14px 0">
+    <button class="btn btn-secondary" onclick="saveMemoAfterBrew()" style="width:100%">📓 記錄此次沖煮</button>
+  </div>
+</div>
+
+<!-- MEMO -->
+<div class="page" id="page-memo">
+  <div class="page-header"><h1>沖煮筆記</h1><p>記錄每一次美好的萃取</p></div>
+  <div class="divider">✦</div>
+  <div class="card">
+    <div class="card-title">✏️ 新增記錄</div>
+    <div class="row" style="margin-bottom:7px">
+      <input type="text" id="memo-bean" placeholder="豆子名稱">
+      <input type="number" id="memo-beans-g" placeholder="克數 g">
+    </div>
+    <div class="row" style="margin-bottom:7px">
+      <input type="number" id="memo-water-ml" placeholder="水量 ml">
+      <input type="number" id="memo-temp-c" placeholder="水溫 °C">
+    </div>
+    <div class="param-label" style="margin-bottom:4px">風味評分</div>
+    <div class="stars" id="stars-input">
+      <span class="star" onclick="setStars(1)">★</span><span class="star" onclick="setStars(2)">★</span>
+      <span class="star" onclick="setStars(3)">★</span><span class="star" onclick="setStars(4)">★</span>
+      <span class="star" onclick="setStars(5)">★</span>
+    </div>
+    <textarea id="memo-text" placeholder="風味描述、改進方向、特別心得..."></textarea>
+    <button class="btn btn-primary" onclick="addMemo()" style="width:100%;margin-top:9px">+ 新增筆記</button>
+  </div>
+  <div class="memo-list" id="memo-list">
+    <div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">☕ 還沒有筆記<br><span style="font-size:11px">開始沖煮後記錄心得</span></div>
+  </div>
+</div>
+
+<!-- Complete Overlay -->
+<div class="complete-overlay" id="complete-overlay">
+  <div class="complete-icon">☕</div>
+  <div class="complete-title">沖煮完成</div>
+  <div class="complete-sub">享用你的咖啡吧</div>
+  <div class="complete-stats">
+    <div class="cstat"><div class="cstat-val" id="cs-time">–</div><div class="cstat-lbl">沖煮時間</div></div>
+    <div class="cstat"><div class="cstat-val" id="cs-water">–</div><div class="cstat-lbl">總注水量</div></div>
+    <div class="cstat"><div class="cstat-val" id="cs-bean">–</div><div class="cstat-lbl">咖啡豆</div></div>
+    <div class="cstat"><div class="cstat-val" id="cs-ratio">–</div><div class="cstat-lbl">粉水比</div></div>
+  </div>
+  <div class="complete-btns">
+    <button class="btn btn-primary" onclick="goMemo()" style="width:100%">📓 記錄此次沖煮</button>
+    <button class="btn btn-secondary" onclick="closeComplete()" style="width:100%">↺ 再沖一杯</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const state={beans:20,water:300,temp:90,bloom:40,grind:18};
+let brewStages=[
+  {type:'pour',name:'倒水',water:40, duration:7, instruction:'由中心向外螺旋注水，豆粉充分濕潤'},
+  {type:'wait',name:'等待',water:0,  duration:23,instruction:'悶蒸排氣，觀察咖啡粉膨脹狀況'},
+  {type:'pour',name:'倒水',water:110,duration:15,instruction:'緩慢螺旋從中心向外注水，保持水位穩定'},
+  {type:'wait',name:'等待',water:0,  duration:12,instruction:'靜待，讓咖啡均勻萃取'},
+  {type:'pour',name:'倒水',water:50, duration:8, instruction:'倒入中心，維持穩定水柱'},
+  {type:'wait',name:'等待',water:0,  duration:6, instruction:'靜待'},
+  {type:'pour',name:'倒水',water:50, duration:8, instruction:'倒入中心，維持穩定水柱'},
+  {type:'wait',name:'等待',water:0,  duration:6, instruction:'靜待'},
+  {type:'pour',name:'倒水',water:50, duration:8, instruction:'最後注水，保持水位穩定'},
+  {type:'wait',name:'等待',water:0,  duration:17,instruction:'滴濾完成，靜待所有咖啡液落下'},
+];
+let timerInterval=null,timerRunning=false,elapsedSeconds=0,currentStageIdx=0;
+let soundEnabled=true,memoStars=0;
+let memos=JSON.parse(localStorage.getItem('coffee_memos')||'[]');
+let savedRecipes=JSON.parse(localStorage.getItem('coffee_recipes')||'[]');
+let audioCtx=null;
+
+function getACtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function beep(freq=880,dur=0.12,type='sine',vol=0.4){
+  if(!soundEnabled)return;
+  try{const ctx=getACtx(),osc=ctx.createOscillator(),g=ctx.createGain();
+    osc.connect(g);g.connect(ctx.destination);osc.type=type;
+    osc.frequency.setValueAtTime(freq,ctx.currentTime);
+    g.gain.setValueAtTime(vol,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    osc.start(ctx.currentTime);osc.stop(ctx.currentTime+dur);}catch(e){}
+}
+function finalBeep(){
+  setTimeout(()=>beep(660,.15,'sine',.5),0);
+  setTimeout(()=>beep(880,.15,'sine',.5),200);
+  setTimeout(()=>beep(1100,.3,'sine',.6),400);
+}
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+  if(id==='timer'){syncTimerStatic();renderStageCards();}
+  if(id==='recipe')renderRecipeStages();
+  if(id==='memo')renderMemos();
+}
+
+function adjust(k,d){state[k]=Math.round((+state[k]+d)*10)/10;updateParams();}
+function setVal(k,v){state[k]=parseFloat(v);updateParams();}
+function updateParams(){
+  document.getElementById('val-beans').textContent=state.beans;
+  document.getElementById('val-water').textContent=state.water;
+  document.getElementById('val-temp').textContent=state.temp;
+  document.getElementById('val-bloom').textContent=state.bloom;
+  document.getElementById('ratio-display').textContent='1 : '+(state.water/state.beans).toFixed(1);
+  const t=state.temp;
+  document.getElementById('temp-desc').textContent=
+    t>=96?'極高溫・淺焙豆':t>=92?'高溫・深焙適用':t>=87?'中高溫・均衡萃取':t>=80?'低溫・冷萃':'超低溫';
+  ['beans','water','temp','bloom'].forEach(k=>{
+    const s=document.querySelector(`input[oninput*="'${k}'"]`);if(s)s.value=state[k];
+  });
+}
+function setGrind(v){
+  state.grind=parseInt(v);document.getElementById('val-grind').textContent=v;renderGrindScale();
+  const L=['極細(土耳其)','細研(意式)','中細(手沖)','中研(美式)','中粗(法壓)','粗研(冷萃)'];
+  document.getElementById('grind-label').textContent=L[Math.min(Math.floor((v-1)/40*L.length),L.length-1)];
+}
+function adjustGrind(d){const v=Math.max(1,Math.min(40,state.grind+d));state.grind=v;document.getElementById('grind-range').value=v;setGrind(v);}
+function renderGrindScale(){
+  const el=document.getElementById('grind-scale');el.innerHTML='';
+  for(let i=1;i<=40;i++){
+    const b=document.createElement('div');
+    b.className='grind-bar'+(i<=state.grind?' active':'');
+    b.style.height=(8+i/40*18)+'px';
+    b.onclick=()=>{document.getElementById('grind-range').value=i;setGrind(i);};
+    el.appendChild(b);
+  }
+}
+function applyPreset(type){
+  const P={
+    v60:{beans:20,water:300,temp:90,bloom:40,grind:18},
+    v60adv:{beans:15,water:225,temp:93,bloom:30,grind:16},
+    kalita:{beans:20,water:320,temp:88,bloom:40,grind:20},
+    cold:{beans:50,water:500,temp:20,bloom:0,grind:35},
+  };
+  Object.assign(state,P[type]);
+  ['beans','water','temp','bloom'].forEach(k=>{const s=document.querySelector(`input[oninput*="'${k}'"]`);if(s)s.value=state[k];});
+  document.getElementById('grind-range').value=state.grind;setGrind(state.grind);updateParams();
+  if(type==='v60'){
+    brewStages=[
+      {type:'pour',name:'倒水',water:40, duration:7, instruction:'由中心向外螺旋注水，豆粉充分濕潤'},
+      {type:'wait',name:'等待',water:0,  duration:23,instruction:'悶蒸排氣，觀察咖啡粉膨脹狀況'},
+      {type:'pour',name:'倒水',water:110,duration:15,instruction:'緩慢螺旋從中心向外注水，保持水位穩定'},
+      {type:'wait',name:'等待',water:0,  duration:12,instruction:'靜待，讓咖啡均勻萃取'},
+      {type:'pour',name:'倒水',water:50, duration:8, instruction:'倒入中心，維持穩定水柱'},
+      {type:'wait',name:'等待',water:0,  duration:6, instruction:'靜待'},
+      {type:'pour',name:'倒水',water:50, duration:8, instruction:'倒入中心，維持穩定水柱'},
+      {type:'wait',name:'等待',water:0,  duration:6, instruction:'靜待'},
+      {type:'pour',name:'倒水',water:50, duration:8, instruction:'最後注水，保持水位穩定'},
+      {type:'wait',name:'等待',water:0,  duration:17,instruction:'滴濾完成，靜待所有咖啡液落下'},
+    ];
+  }
+  showToast('已套用：'+{v60:'V60初學者',v60adv:'V60進階',kalita:'Kalita波浪',cold:'冷萃輕口'}[type]);
+}
+
+function renderRecipeStages(){
+  const c=document.getElementById('recipe-stages');c.innerHTML='';
+  brewStages.forEach((s,i)=>{
+    const div=document.createElement('div');div.className='recipe-stage';
+    div.innerHTML=`
+      <span style="font-size:20px;padding-top:2px">${s.type==='pour'?'💧':'⏳'}</span>
+      <div class="recipe-stage-body">
+        <div class="rs-row"><label>名稱</label><input type="text" value="${s.name}" oninput="brewStages[${i}].name=this.value" style="flex:1"></div>
+        <div class="rs-row"><label>時間</label><input type="number" value="${s.duration}" oninput="brewStages[${i}].duration=+this.value" style="flex:1"><span style="font-size:11px;color:var(--muted);margin-left:4px">秒</span></div>
+        ${s.type==='pour'?`<div class="rs-row"><label>注水</label><input type="number" value="${s.water}" oninput="brewStages[${i}].water=+this.value" style="flex:1"><span style="font-size:11px;color:var(--muted);margin-left:4px">ml</span></div>`:''}
+        <div class="rs-row" style="align-items:flex-start"><label>說明</label><textarea style="flex:1;min-height:40px;font-size:12px" oninput="brewStages[${i}].instruction=this.value">${s.instruction||''}</textarea></div>
+      </div>
+      <button class="rs-del" onclick="removeStage(${i})">✕</button>`;
+    c.appendChild(div);
+  });
+  renderSavedRecipes();
+}
+function addPourStage(){brewStages.push({type:'pour',name:'倒水',water:50,duration:8,instruction:''});renderRecipeStages();}
+function addWaitStage(){brewStages.push({type:'wait',name:'等待',water:0,duration:10,instruction:'靜待'});renderRecipeStages();}
+function removeStage(i){brewStages.splice(i,1);renderRecipeStages();}
+function saveRecipe(){
+  const r={id:Date.now(),name:document.getElementById('recipe-name').value||'未命名食譜',stages:JSON.parse(JSON.stringify(brewStages)),params:{...state}};
+  savedRecipes.unshift(r);localStorage.setItem('coffee_recipes',JSON.stringify(savedRecipes));
+  showToast('食譜已儲存！');renderSavedRecipes();
+}
+function renderSavedRecipes(){
+  const sec=document.getElementById('saved-recipes-section'),list=document.getElementById('saved-recipes-list');
+  if(!savedRecipes.length){sec.style.display='none';return;}
+  sec.style.display='block';list.innerHTML='';
+  savedRecipes.forEach((r,i)=>{
+    const totalW=r.stages.filter(s=>s.type==='pour').reduce((a,s)=>a+s.water,0);
+    const div=document.createElement('div');div.className='saved-ri';
+    div.innerHTML=`<button class="memo-del" onclick="deleteRecipe(${i})">✕</button>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">${r.stages.length}步・${totalW}ml</div>
+      <div style="font-size:14px;color:var(--text);font-weight:600;margin-bottom:6px">${r.name}</div>
+      <button class="btn-sm" onclick="loadRecipe(${i})">套用此食譜</button>`;
+    list.appendChild(div);
+  });
+}
+function loadRecipe(i){
+  const r=savedRecipes[i];brewStages=JSON.parse(JSON.stringify(r.stages));
+  Object.assign(state,r.params);updateParams();renderRecipeStages();showToast('已套用：'+r.name);
+}
+function deleteRecipe(i){savedRecipes.splice(i,1);localStorage.setItem('coffee_recipes',JSON.stringify(savedRecipes));renderSavedRecipes();}
+
+function totalTime(){return brewStages.reduce((a,s)=>a+s.duration,0);}
+function totalWater(){return brewStages.filter(s=>s.type==='pour').reduce((a,s)=>a+s.water,0);}
+function getInfo(t){
+  let cum=0,cumW=0;
+  for(let i=0;i<brewStages.length;i++){
+    const s=brewStages[i];
+    if(t<cum+s.duration)return{idx:i,s,elapsed:t-cum,remaining:cum+s.duration-t,progress:(t-cum)/s.duration,cumWBefore:cumW};
+    if(s.type==='pour')cumW+=s.water;
+    cum+=s.duration;
+  }
+  const last=brewStages[brewStages.length-1];
+  return{idx:brewStages.length-1,s:last,elapsed:last.duration,remaining:0,progress:1,cumWBefore:totalWater()-last.water};
+}
+function getWaterAt(t){
+  let cum=0,w=0;
+  for(let i=0;i<brewStages.length;i++){
+    const s=brewStages[i];
+    if(t<=cum+s.duration){if(s.type==='pour')w+=s.water*((t-cum)/s.duration);break;}
+    if(s.type==='pour')w+=s.water;cum+=s.duration;
+  }
+  return Math.round(w);
+}
+function syncTimerStatic(){
+  const tw=totalWater()||state.water;
+  document.getElementById('water-total').textContent=tw;
+}
+function renderStageCards(){
+  const c=document.getElementById('stage-cards');c.innerHTML='';
+  const info=elapsedSeconds>0?getInfo(elapsedSeconds):null;
+  const activeIdx=info?info.idx:-1;
+  const active=[],upcoming=[],done=[];
+  brewStages.forEach((s,i)=>{
+    if(i===activeIdx)active.push({s,i});
+    else if(activeIdx>=0&&i<activeIdx)done.push({s,i});
+    else upcoming.push({s,i});
+  });
+  function makeCard(s,i,role){
+    const isActive=role==='active',isDone=role==='done';
+    const div=document.createElement('div');
+    div.className=`sc ${s.type}${isActive?' active-sc':''}${isDone?' done-sc':''}`;
+    const icon=s.type==='pour'?'💧':'⏳';
+    let t;
+    if(isActive)t=ft(Math.ceil(info.remaining));
+    else if(isDone)t='✓';
+    else t=ft(s.duration);
+    div.innerHTML=`
+      <div class="sc-icon">${icon}</div>
+      <div class="sc-body">
+        <div class="sc-name">${s.name}${s.type==='pour'?' '+s.water+' ml':''}</div>
+        <div class="sc-sub">${isDone?'已完成':s.type==='pour'?'注水 '+s.water+'ml':'等待'}</div>
+      </div>
+      <div class="sc-time">${t}</div>`;
+    return div;
+  }
+  function makeDivider(label){
+    const d=document.createElement('div');d.className='stage-divider';d.textContent=label;return d;
+  }
+  active.forEach(({s,i})=>c.appendChild(makeCard(s,i,'active')));
+  if(upcoming.length){
+    if(active.length||done.length)c.appendChild(makeDivider('接下來'));
+    upcoming.forEach(({s,i})=>c.appendChild(makeCard(s,i,'upcoming')));
+  }
+  if(done.length){
+    c.appendChild(makeDivider('已完成'));
+    done.forEach(({s,i})=>c.appendChild(makeCard(s,i,'done')));
+  }
+}
+function updateDisplay(){
+  const done=elapsedSeconds>=totalTime();
+  document.getElementById('timer-display').textContent=ft(elapsedSeconds);
+  const tw=totalWater();
+  const poured=getWaterAt(elapsedSeconds);
+  document.getElementById('water-now').textContent=poured;
+  const pct=Math.min(Math.round(poured/tw*100),100);
+  document.getElementById('wb-fill').style.width=pct+'%';
+  document.getElementById('wb-pct').textContent=pct+'%';
+  if(done){
+    document.getElementById('stage-badge').textContent='✅ 沖煮完成！';
+    document.getElementById('stage-badge').className='stage-badge done';
+    document.getElementById('stage-sec').textContent='0';
+    document.getElementById('stage-ring-c').style.strokeDashoffset=258;
+    document.getElementById('water-now').className='water-now';
+    renderStageCards();showCompleteOverlay();return;
+  }
+  const{idx,s,elapsed,remaining,progress,cumWBefore}=getInfo(elapsedSeconds);
+  currentStageIdx=idx;
+  document.getElementById('water-now').className='water-now'+(s.type==='wait'?' wait-mode':'');
+  const badge=document.getElementById('stage-badge');
+  badge.className='stage-badge '+s.type;
+  badge.textContent=s.type==='pour'?`💧 注水 ${s.water}ml`:'⏳ 等待';
+  const circ=258;
+  document.getElementById('stage-ring-c').style.strokeDashoffset=circ*(1-progress);
+  document.getElementById('stage-ring-c').className='ring-fill '+s.type;
+  document.getElementById('stage-sec').textContent=Math.ceil(remaining);
+  const stageW=s.type==='pour'?s.water:0;
+  const cumTarget=cumWBefore+stageW;
+  document.getElementById('hint-stage').className='hint-chip'+(s.type==='pour'?' active-pour':' active-wait');
+  document.getElementById('hint-cum').className='hint-chip'+(s.type==='pour'?' active-pour':' active-wait');
+  const sv=document.getElementById('chip-stage');
+  sv.className='hint-val'+(s.type==='pour'?' pour-color':' wait-color');
+  sv.textContent=s.type==='pour'?'+'+s.water+'ml':'等待中';
+  const cv=document.getElementById('chip-cum');
+  cv.className='hint-val'+(s.type==='pour'?' pour-color':' wait-color');
+  cv.textContent=cumTarget+'ml';
+  document.getElementById('instr-card').textContent=s.instruction||'';
+  const secLeft=Math.ceil(remaining);
+  if(secLeft<=5&&secLeft>=1)beep(secLeft===1?1200:secLeft<=3?800:600,0.1,'square',0.3);
+  if(secLeft<=3){const td=document.getElementById('timer-display');td.classList.add('flash');setTimeout(()=>td.classList.remove('flash'),350);}
+  renderStageCards();
+}
+function toggleTimer(){
+  if(timerRunning){clearInterval(timerInterval);timerRunning=false;document.getElementById('btn-start').textContent='▶ 繼續';}
+  else{
+    try{getACtx().resume();}catch(e){}
+    timerRunning=true;document.getElementById('btn-start').textContent='⏸ 暫停';
+    timerInterval=setInterval(tick,1000);
+  }
+}
+function tick(){
+  elapsedSeconds++;
+  if(elapsedSeconds>=totalTime()){clearInterval(timerInterval);timerRunning=false;document.getElementById('btn-start').textContent='✓ 完成';updateDisplay();finalBeep();return;}
+  updateDisplay();
+}
+function resetTimer(){
+  clearInterval(timerInterval);timerRunning=false;elapsedSeconds=0;currentStageIdx=0;
+  document.getElementById('btn-start').textContent='▶ 開始';
+  document.getElementById('timer-display').textContent='00:00';
+  document.getElementById('water-now').textContent='0';
+  document.getElementById('water-now').className='water-now';
+  document.getElementById('wb-fill').style.width='0%';
+  document.getElementById('wb-pct').textContent='0%';
+  document.getElementById('stage-ring-c').style.strokeDashoffset=0;
+  document.getElementById('stage-sec').textContent='–';
+  document.getElementById('stage-badge').textContent='☕ 準備開始';
+  document.getElementById('stage-badge').className='stage-badge pour';
+  const fs=brewStages[0];
+  if(fs){
+    document.getElementById('instr-card').textContent=fs.instruction||'';
+    const sv=document.getElementById('chip-stage');sv.className='hint-val pour-color';sv.textContent=fs.type==='pour'?'+'+fs.water+'ml':'–';
+    const cv=document.getElementById('chip-cum');cv.className='hint-val pour-color';cv.textContent=fs.type==='pour'?fs.water+'ml':'–';
+  }
+  renderStageCards();
+}
+function toggleSound(){
+  soundEnabled=!soundEnabled;
+  const b=document.getElementById('sound-btn');
+  b.textContent=soundEnabled?'🔔':'🔕';b.className='sound-btn'+(soundEnabled?' on':'');
+  showToast(soundEnabled?'音效已開啟':'音效已關閉');
+}
+function ft(s){s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function saveMemoAfterBrew(){
+  showPage('memo');
+  document.getElementById('memo-bean').value=document.getElementById('bean-name')?.value||'';
+  document.getElementById('memo-beans-g').value=state.beans;
+  document.getElementById('memo-water-ml').value=state.water;
+  document.getElementById('memo-temp-c').value=state.temp;
+}
+function showCompleteOverlay(){
+  const tw=totalWater();
+  document.getElementById('cs-time').textContent=ft(totalTime());
+  document.getElementById('cs-water').textContent=tw+'ml';
+  document.getElementById('cs-bean').textContent=state.beans+'g';
+  document.getElementById('cs-ratio').textContent='1:'+(tw/state.beans).toFixed(1);
+  document.getElementById('complete-overlay').classList.add('show');
+}
+function closeComplete(){document.getElementById('complete-overlay').classList.remove('show');resetTimer();}
+function goMemo(){document.getElementById('complete-overlay').classList.remove('show');saveMemoAfterBrew();}
+function setStars(n){memoStars=n;document.querySelectorAll('#stars-input .star').forEach((s,i)=>s.classList.toggle('filled',i<n));}
+function addMemo(){
+  const bean=document.getElementById('memo-bean').value,text=document.getElementById('memo-text').value;
+  if(!text&&!bean){showToast('請填入豆子或筆記內容');return;}
+  const m={id:Date.now(),
+    date:new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    bean,beansG:document.getElementById('memo-beans-g').value,
+    waterMl:document.getElementById('memo-water-ml').value,
+    tempC:document.getElementById('memo-temp-c').value,text,stars:memoStars};
+  memos.unshift(m);localStorage.setItem('coffee_memos',JSON.stringify(memos));
+  ['memo-bean','memo-beans-g','memo-water-ml','memo-temp-c','memo-text'].forEach(id=>document.getElementById(id).value='');
+  setStars(0);renderMemos();showToast('筆記已儲存！');
+}
+function deleteMemo(id){memos=memos.filter(m=>m.id!==id);localStorage.setItem('coffee_memos',JSON.stringify(memos));renderMemos();}
+function renderMemos(){
+  const list=document.getElementById('memo-list');
+  if(!memos.length){list.innerHTML='<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">☕ 還沒有筆記<br><span style="font-size:11px">開始沖煮後記錄心得</span></div>';return;}
+  list.innerHTML='';
+  memos.forEach(m=>{
+    const div=document.createElement('div');div.className='memo-card';
+    const stars=m.stars?'★'.repeat(m.stars)+'☆'.repeat(5-m.stars):'';
+    const params=[m.beansG&&m.beansG+'g',m.waterMl&&m.waterMl+'ml',m.tempC&&m.tempC+'°C'].filter(Boolean).join(' · ');
+    div.innerHTML=`<button class="memo-del" onclick="deleteMemo(${m.id})">✕</button>
+      <div class="memo-date">${m.date}</div>
+      ${m.bean?`<div style="font-size:13px;color:var(--text);margin-bottom:3px">${m.bean}</div>`:''}
+      ${params?`<div class="memo-params">${params}</div>`:''}
+      ${stars?`<div style="color:var(--accent2);font-size:13px;margin-bottom:4px">${stars}</div>`:''}
+      ${m.text?`<div class="memo-text">${m.text}</div>`:''}`;
+    list.appendChild(div);
+  });
+}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+updateParams();renderGrindScale();syncTimerStatic();renderStageCards();renderMemos();renderRecipeStages();
+</script>
+</body>
+</html>
