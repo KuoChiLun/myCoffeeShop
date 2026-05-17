@@ -7,7 +7,6 @@
 <link rel="manifest" href="manifest.json">
 <title>手沖咖啡</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root {
   --bg: #1a1208; --surface: #241a0e; --surface2: #2e2010; --card: #332515;
@@ -384,11 +383,6 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
     </div>
     <input type="text" placeholder="豆子名稱，例：耶加雪菲 日曬 G1" id="bean-name">
   </div>
-  
-  <div class="card" style="padding:12px; background:rgba(0,0,0,0.15)">
-    <div class="card-title" style="margin-bottom:8px; font-size:9px">📈 預期注水路徑</div>
-    <canvas id="previewChart" style="width:100%; height:120px"></canvas>
-  </div>
 
   <button class="btn btn-primary" onclick="showPage('timer')" style="width:100%">▶ 開始沖煮</button>
 </div>
@@ -560,7 +554,6 @@ let brewStages=[
   {type:'wait',name:'等待',water:0,  duration:17,instruction:'滴濾完成，靜待所有咖啡液落下'},
 ];
 let timerInterval=null,timerRunning=false,elapsedSeconds=0,currentStageIdx=0;
-let previewChart=null;
 let soundEnabled=true,memoStars=0;
 let memos=JSON.parse(localStorage.getItem('coffee_memos')||'[]');
 let savedRecipes=JSON.parse(localStorage.getItem('coffee_recipes')||'[]');
@@ -587,7 +580,6 @@ function showPage(id){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   document.getElementById('nav-'+id).classList.add('active');
-  if(id==='params') renderPreviewChart();
   if(id==='timer'){syncTimerStatic();renderStageCards();}
   if(id==='recipe')renderRecipeStages();
   if(id==='memo')renderMemos();
@@ -607,7 +599,6 @@ function updateParams(){
   ['beans','water','temp','bloom'].forEach(k=>{
     const s=document.querySelector(`input[oninput*="'${k}'"]`);if(s)s.value=state[k];
   });
-  renderPreviewChart();
 }
 function setGrind(v){
   state.grind=parseInt(v);document.getElementById('val-grind').textContent=v;renderGrindScale();
@@ -857,61 +848,6 @@ function showCompleteOverlay(){
   document.getElementById('cs-bean').textContent=state.beans+'g';
   document.getElementById('cs-ratio').textContent='1:'+(tw/state.beans).toFixed(1);
   document.getElementById('complete-overlay').classList.add('show');
-}
-function renderPreviewChart(){
-  const ctx = document.getElementById('previewChart')?.getContext('2d');
-  if(!ctx) return;
-  if(previewChart) previewChart.destroy();
-  
-  const targetData = [];
-  const totalT = totalTime();
-  for(let t=0; t<=totalT; t+=1) {
-    targetData.push({t, w: getWaterAt(t)});
-  }
-
-  const pourColor = getComputedStyle(document.documentElement).getPropertyValue('--pour').trim() || '#4ab8e8';
-
-  previewChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: targetData.map(d => ft(d.t)),
-      datasets: [{
-        label: '目標水量 (ml)',
-        data: targetData.map(d => d.w),
-        borderColor: pourColor,
-        backgroundColor: 'rgba(74, 184, 232, 0.1)',
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: true,
-        tension: 0.1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 0 },
-      plugins: {
-        legend: { display: false },
-        tooltip: { enabled: false }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: { color: 'rgba(90, 62, 34, 0.1)' },
-          ticks: { color: '#8a6a42', font: { size: 9, family: 'Space Mono' } }
-        },
-        x: {
-          grid: { display: false },
-          ticks: { 
-            color: '#8a6a42', 
-            font: { size: 9, family: 'Space Mono' },
-            autoSkip: true,
-            maxTicksLimit: 5
-          }
-        }
-      }
-    }
-  });
 }
 function closeComplete(){document.getElementById('complete-overlay').classList.remove('show');resetTimer();}
 function goMemo(){document.getElementById('complete-overlay').classList.remove('show');saveMemoAfterBrew();}
